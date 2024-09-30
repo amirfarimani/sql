@@ -5,8 +5,13 @@ Create a logical model for a small bookstore. 📚
 
 At the minimum it should have employee, order, sales, customer, and book entities (tables). Determine sensible column and table design based on what you know about these concepts. Keep it simple, but work out sensible relationships to keep tables reasonably sized. Include a date table. There are several tools online you can use, I'd recommend [_Draw.io_](https://www.drawio.com/) or [_LucidChart_](https://www.lucidchart.com/pages/).
 
+![Screenshot 2024-09-28 122656](https://github.com/user-attachments/assets/926239f9-c714-4499-afa5-bbe7161c01ca)
+
 ## Question 2
 We want to create employee shifts, splitting up the day into morning and evening. Add this to the ERD.
+
+![Screenshot 2024-09-28 131852](https://github.com/user-attachments/assets/2011bf2a-80c9-4c97-81fb-53507f8ae48d)
+
 
 ## Question 3
 The store wants to keep customer addresses. Propose two architectures for the CUSTOMER_ADDRESS table, one that will retain changes, and another that will overwrite. Which is type 1, which is type 2?
@@ -17,6 +22,13 @@ Bonus: Are there privacy implications to this, why or why not?
 ```
 Your answer...
 ```
+Type 1: Overwriting the Previous Address In this approach, the existing address information is overwritten with the new data whenever a customer's address changes.
+
+Structure: The table's structure remains unchanged. There is only one row per customer, and it always holds the most recent address. Example use case: If you're only interested in knowing the current address and have no need to retain previous addresses, this is the simplest and most efficient solution.
+
+Type 2: Retaining Address History In this approach, the old address is preserved. Each time a customer's address changes, a new row is added to the table with a new customer_address_id, and the old record remains intact.
+
+Structure: The table now includes a customer_address_id (or other identifiers like start_date and end_date) to track each change. The current address is indicated by having an end_date of NULL or a specific is_current flag.
 
 ## Question 4
 Review the AdventureWorks Schema [here](https://imgur.com/a/u0m8fX6)
@@ -25,6 +37,13 @@ Highlight at least two differences between it and your ERD. Would you change any
 ```
 Your answer...
 ```
+1.Normalization and Simplicity: Imgur Diagram: It is likely more normalized and simplified, with fewer complex relationships. This ensures that redundant data is minimized, and each entity has a clear, defined purpose. For example, the imgur diagram may handle product details, customers, and orders in a more streamlined way, reducing complexity by avoiding extra tables for processes that can be combined or managed with fewer tables.
+
+My Diagram: While functional, it could potentially benefit from further normalization to simplify some of the relationships. For example, reconsidering whether separating the Sales Table from the Order Table is necessary or if they could be merged for simplicity, especially if sales are always tied directly to an order.
+
+2.Modularity and Flexibility: Imgur Diagram: Likely focuses on a modular structure where different entities (like customers, products, and orders) are independently managed, making the system adaptable. This allows future changes (like adding new product types or customer details) without needing to overhaul the entire system.
+
+My Diagram: It could be made more modular and flexible by separating out responsibilities between entities more clearly. For example, handling of employee shifts is very specific, but I might think about making it more flexible by creating a more generalized system for tracking employee roles, schedules, or involvement in various tasks.
 
 # Criteria
 
