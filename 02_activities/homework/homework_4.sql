@@ -17,7 +17,10 @@ The `||` values concatenate the columns into strings.
 Edit the appropriate columns -- you're making two edits -- and the NULL rows will be fixed. 
 All the other rows will remain the same.) */
 
-
+SELECT 
+product_name || ', ' || coalesce(product_size,'       ')|| ' (' || coalesce(product_qty_type,'unit') || ')'
+AS product_information
+FROM product;
 
 
 --Windowed Functions
@@ -30,16 +33,66 @@ each new market date for each customer, or select only the unique market dates p
 (without purchase details) and number those visits. 
 HINT: One of these approaches uses ROW_NUMBER() and one uses DENSE_RANK(). */
 
+--First approach (row_number) :
+SELECT customer_id
+      ,market_date
+	  ,transaction_time
+	  ,ROW_NUMBER() OVER(PARTITION BY customer_id ORDER BY market_date) AS visit_label
+FROM customer_purchases;
+
+--Second approach (dense_rank)
+SELECT customer_id
+      ,market_date
+	  ,transaction_time
+	  ,DENSE_RANK() OVER(PARTITION BY customer_id ORDER BY market_date) AS visit_label
+FROM customer_purchases;
+
+-- how many times each customer visited the farmer's market : 
+SELECT 
+       customer_id
+	  ,max(visit_label) AS total_visits
+FROM (
+SELECT customer_id
+      ,market_date
+	  ,transaction_time
+	  ,ROW_NUMBER() OVER(PARTITION BY customer_id ORDER BY market_date) AS visit_label
+FROM customer_purchases
+      )
+GROUP BY customer_id;
 
 /* 2. Reverse the numbering of the query from a part so each customer’s most recent visit is labeled 1, 
 then write another query that uses this one as a subquery (or temp table) and filters the results to 
 only the customer’s most recent visit. */
 
+-- reveresed ranking : 
+SELECT customer_id
+      ,market_date
+	  ,transaction_time
+	  ,DENSE_RANK() OVER(PARTITION BY customer_id ORDER BY market_date DESC,transaction_time DESC) AS visit_label
+FROM customer_purchases;
+
+-- Each customer's total visit
+SELECT customer_id
+      ,market_date
+	  ,transaction_time
+	  ,max(visit_label) AS total_visits
+FROM (
+      SELECT customer_id
+      ,market_date
+	  ,transaction_time
+	  ,DENSE_RANK() OVER(PARTITION BY customer_id ORDER BY market_date DESC,transaction_time DESC) AS visit_label
+FROM customer_purchases
+      )
+	  GROUP BY customer_id;
+	  
+
 
 /* 3. Using a COUNT() window function, include a value along with each row of the 
 customer_purchases table that indicates how many different times that customer has purchased that product_id. */
 
-
+SELECT *
+       ,count(*) OVER(PARTITION BY customer_id, product_id)AS total_times_purchased
+FROM customer_purchases;
 
 
 -- String manipulations
@@ -54,11 +107,20 @@ Remove any trailing or leading whitespaces. Don't just use a case statement for 
 
 Hint: you might need to use INSTR(product_name,'-') to find the hyphens. INSTR will help split the column. */
 
-
-
-/* 2. Filter the query to show any product_size value that contain a number with REGEXP. */
-
-
+SELECT product_name,
+       LTRIM(RTRIM(main_product)) as [product_whitespaces_removed],
+       LTRIM(RTRIM(description)) as [description_whitespaces_removed]
+FROM (
+      SELECT
+            product_name,
+  -- Use the whole product name as main_product if no hyphen exists.
+            SUBSTR(product_name, 1, IFNULL(NULLIF(INSTR(product_name, '-') - 1, -1), LENGTH(product_name))) AS main_product,
+  -- Extract the description part after the hyphen or return NULL if no hyphen exists.
+            NULLIF(SUBSTR(product_name, INSTR(product_name, '-') + 1, LENGTH(product_name)), product_name) AS description
+       FROM  
+	        product
+	 );
+  
 
 -- UNION
 /* 1. Using a UNION, write a query that displays the market dates with the highest and lowest total sales.
@@ -70,6 +132,59 @@ HINT: There are a possibly a few ways to do this query, but if you're struggling
 3) Query the second temp table twice, once for the best day, once for the worst day, 
 with a UNION binding them. */
 
+--first temp table
+DROP table IF EXISTS sales_status;
+CREATE TEMP TABLE sales_status AS
+
+SELECT  market_date,
+        quantity,
+        cost_to_customer_per_qty,
+        (quantity * cost_to_customer_per_qty) AS total_cost,
+        row_number() OVER (PARTITION BY market_date ORDER BY (quantity*cost_to_customer_per_qty)DESC) AS row_num
+FROM customer_purchases;
+
+--second temp table
+DROP table IF EXISTS max_min_sales;
+CREATE TEMP TABLE max_min_sales AS
+SELECT *,
+       max(total_cost) OVER (PARTITION BY market_date) AS max_sales,
+	   min(total_cost) OVER (PARTITION BY market_date) AS min_sales
+FROM sales_status;
+
+--finding the best day and the worst day
+SELECT 
+    market_date, 
+    max_sales AS sales_value, 
+    'Best Day' AS day_type
+FROM (
+    SELECT 
+        market_date,
+        max_sales,
+        min_sales,
+        RANK() OVER (ORDER BY max_sales DESC) AS max_sales_rank
+    FROM 
+        max_min_sales
+) AS ranked_sales
+WHERE 
+    max_sales_rank = 1
+
+UNION
+
+SELECT 
+    market_date, 
+    min_sales AS sales_value, 
+    'Worst Day' AS day_type
+FROM (
+    SELECT 
+        market_date,
+        max_sales,
+        min_sales,
+        RANK() OVER (ORDER BY min_sales ASC) AS min_sales_rank
+    FROM 
+        max_min_sales
+) AS ranked_sales
+WHERE 
+    min_sales_rank = 1;
 
 
 
